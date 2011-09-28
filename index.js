@@ -40,8 +40,8 @@ var UrbanAirship = module.exports = function (options) {
  * UrbanAirshipへのデバイス登録メソッド
  *
  * @param params
- *   device_token 'string' // c2dm_registration_idとどちらかのみ
- *   c2dm_registration_id 'string' // device_tokenとどちらかのみ
+ *   device_token 'string'
+ *   c2dm_registration_id 'string'
  *   alias 'string'
  *   tags ['string']
  *   badge number // iPhoneのみ
@@ -58,40 +58,43 @@ UrbanAirship.prototype.register = function (params) {
       Array.isArray(p) !== false)
     throw new Error('arguments[0] is invalid.');
 
-  else if (p.device_token && p.c2dm_registration_id)
-    throw new Error('device_token and c2dm_registration_id can not together.');
-
-  else if (p.device_token) {
-    this._url.pathname = '/api/device_tokens/' + p.device_token;
-    delete p.device_token;
-  }
-
-  else if (p.c2dm_registration_id) {
-    this._url.pathname = '/api/apids/' + p.c2dm_registration_id;
-    delete p.c2dm_registration_id;
-  }
-
-  else
+  else if (!p.device_token && !p.c2dm_registration_id)
     throw new Error('device_token or c2dm_registration_id not found.');
 
-  var body = body.stringify(p);
-  var req = this._client.request(
-      this._requestOptions({
-        method : 'PUT',
-        headers : { 'content-lehgth' : body.length }
-      }),
-      function (res) {
-        if (res.statusCode < 200 || res.statusCode >= 300) {
-          console.error(res);
-        }
-      });
+  var that = this;
+  var register = function (body) {
+    var req = that._client.request(
+        that._requestOptions({
+          method : 'PUT',
+          headers : { 'content-length' : body.length }
+        }),
+        function (res) {
+          if (res.statusCode < 200 || res.statusCode >= 300) {
+            console.error(res);
+          }
+        });
 
-  req.on('error', function (e) {
-    throw new Error(e);
-  });
+    req.on('error', function (e) {
+      throw new Error(e);
+    });
 
-  req.write(body);
-  req.end();
+    req.write(body);
+    req.end();
+  };
+
+  if (p.device_token) {
+    var _p = this._extend(p);
+    delete _p.c2dm_registration_id;
+    this._url.pathname = '/api/device_tokens/' + _p.device_token;
+    register(JSON.stringify(_p));
+  }
+
+  if (p.c2dm_registration_id) {
+    var _p = this._extend(p);
+    delete _p.device_token;
+    this._url.pathname = '/api/apids/' + _p.c2dm_registration_id;
+    register(JSON.stringify(_p));
+  }
 };
 
 /**
@@ -100,48 +103,52 @@ UrbanAirship.prototype.register = function (params) {
  * UrbanAirshipへのデバイス削除メソッド
  *
  * @param params
- *   device_token 'string' // c2dm_registration_idとどちらかのみ
- *   c2dm_registration_id 'string' // device_tokenとどちらかのみ
+ *   device_token 'string'
+ *   c2dm_registration_id 'string'
  * @see http://urbanairship.com/docs/push.html#registration
  * @see http://urbanairship.com/docs/android.html#registration
  * @return
  */
 UrbanAirship.prototype.deregister = function (params) {
-  var p = params = {};
+  var p = params || {};
 
   if (typeof p !== 'object' ||
       Array.isArray(p) !== false)
     throw new Error('arguments[0] is invalid.');
 
-  else if (p.device_token && p.c2dm_registration_id)
-    throw new Error('device_token and c2dm_registration_id can not together.');
-
-  else if (p.device_token) {
-    this._url.pathname = '/api/device_tokens/' + p.device_token;
-    delete p.device_token;
-  }
-
-  else if (p.c2dm_registration_id) {
-    this._url.pathname = '/api/apids/' + p.c2dm_registration_id;
-    delete p.c2dm_registration_id;
-  }
-
-  else
+  else if (!p.device_token && !p.c2dm_registration_id)
     throw new Error('device_token or c2dm_registration_id not found.');
 
-  var req = this._client.request(
-      this._requestOptions({ method : 'DELETE' }),
-      function (res) {
-        if (res.statusCode < 200 || res.statusCode >= 300) {
-          console.error(res);
-        }
-      });
+  var that = this;
+  var deregister = function () {
+    var req = that._client.request(
+        that._requestOptions({ method : 'DELETE' }),
+        function (res) {
+          if (res.statusCode < 200 || res.statusCode >= 300) {
+            console.error(res);
+          }
+        });
 
-  req.on('error', function (e) {
-    throw new Error(e);
-  });
+    req.on('error', function (e) {
+      throw new Error(e);
+    });
 
-  req.end();
+    req.end();
+  };
+
+  if (p.device_token) {
+    var _p = this._extend(p);
+    delete _p.c2dm_registration_id;
+    this._url.pathname = '/api/device_tokens/' + p.device_token;
+    deregister();
+  }
+
+  if (p.c2dm_registration_id) {
+    var _p = this._extend(p);
+    delete _p.device_token;
+    this._url.pathname = '/api/apids/' + _p.c2dm_registration_id;
+    deregister();
+  }
 };
 
 /**
@@ -185,17 +192,6 @@ UrbanAirship.prototype.push = function (params) {
   delete p.badge;
   delete p.extra;
 
-  Object.defineProperty(p, 'extend', {
-    enumerable : false,
-    value : function (options) {
-      var clone = options || {};
-      for (var key in this) {
-        clone[key] = clone[key] || this[key];
-      }
-      return clone;
-    }
-  });
-
   var that = this;
   var push = function (body) {
     var req = that._client.request(
@@ -220,7 +216,7 @@ UrbanAirship.prototype.push = function (params) {
   };
 
   if (p.device_tokens && Array.isArray(p.device_tokens)) {
-    var _p = p.extend({ aps : aps });
+    var _p = this._extend(p, { aps : aps });
 
     aps = undefined;
     delete _p.apids;
@@ -229,7 +225,7 @@ UrbanAirship.prototype.push = function (params) {
   }
 
   if (p.apids && Array.isArray(p.apids)) {
-    var _p = p.extend({ android : android });
+    var _p = this._extend(p, { android : android });
 
     android = undefined;
     delete _p.device_tokens;
@@ -306,6 +302,16 @@ UrbanAirship.prototype.broadcast = function (params) {
 /**
  * private
  */
+UrbanAirship.prototype._extend = function (obj, opts) {
+  var clone = opts || {};
+
+  for (var key in obj) {
+    clone[key] = clone[key] || obj[key];
+  }
+
+  return clone;
+};
+
 UrbanAirship.prototype._requestOptions = function (options) {
   var o = options || {};
 
