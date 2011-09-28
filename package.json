@@ -1,0 +1,7 @@
+{
+	"name": "UrbanAirship-node",
+	"version": "0.0.1",
+	"dependencies": {
+		"base64": ">=2.0.3"
+	}
+}
